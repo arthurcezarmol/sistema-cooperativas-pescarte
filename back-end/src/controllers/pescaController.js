@@ -27,7 +27,7 @@ exports.cadastrarItemCaptura = async (req, res) => {
   const { 
     pescaria_id, 
     especie_id, 
-    quantidade = 1, 
+    quantidade, 
     peso_kg, 
     tamanho_cm, 
     preco_unitario_kg 
@@ -223,5 +223,182 @@ exports.listarMinhasPescarias = async (req, res) => {
   } catch (error) {
     console.error('Erro ao listar pescarias:', error);
     return res.status(500).json({ erro: 'Erro ao buscar o histórico do pescador.' });
+  }
+};
+
+// PUT /api/pesca/pescarias/:id
+exports.atualizarPescaria = async (req, res) => {
+  const { id } = req.params;
+  const pescador_id = req.usuarioLogado.id;
+  const { data_pescaria, observacoes } = req.body;
+
+  try {
+    const query = `
+      UPDATE pescarias
+      SET data_pescaria = COALESCE($1, data_pescaria),
+          observacoes = $2
+      WHERE id = $3 AND pescador_id = $4
+      RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [
+      data_pescaria || null,
+      observacoes ?? null,
+      id,
+      pescador_id
+    ]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ erro: 'Pescaria não encontrada.' });
+    }
+
+    return res.json(rows[0]);
+  } catch (error) {
+    console.error('Erro ao atualizar pescaria:', error);
+    return res.status(500).json({ erro: 'Erro interno ao atualizar pescaria.' });
+  }
+};
+
+// DELETE /api/pesca/pescarias/:id
+exports.excluirPescaria = async (req, res) => {
+  const { id } = req.params;
+  const pescador_id = req.usuarioLogado.id;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const pescariaRes = await client.query(
+      'SELECT id FROM pescarias WHERE id = $1 AND pescador_id = $2',
+      [id, pescador_id]
+    );
+
+    if (pescariaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ erro: 'Pescaria não encontrada.' });
+    }
+
+    await client.query(`
+      DELETE FROM transacoes_financeiras
+      WHERE pescador_id = $1
+        AND item_captura_id IN (
+          SELECT id FROM itens_captura WHERE pescaria_id = $2
+        )
+    `, [pescador_id, id]);
+    await client.query('DELETE FROM pescarias WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    return res.status(204).send();
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao excluir pescaria:', error);
+    return res.status(500).json({ erro: 'Erro interno ao excluir pescaria.' });
+  } finally {
+    client.release();
+  }
+};
+
+// PUT /api/pesca/capturas/:id
+exports.atualizarItemCaptura = async (req, res) => {
+  const { id } = req.params;
+  const pescador_id = req.usuarioLogado.id;
+  const { especie_id, quantidade, peso_kg, tamanho_cm, preco_unitario_kg } = req.body;
+
+  if (!especie_id || peso_kg == null || preco_unitario_kg == null) {
+    return res.status(400).json({
+      erro: 'especie_id, peso_kg e preco_unitario_kg são obrigatórios.'
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const capturaRes = await client.query(`
+      UPDATE itens_captura ic
+      SET especie_id = $1,
+          quantidade = $2,
+          peso_kg = $3,
+          tamanho_cm = $4,
+          preco_unitario_kg = $5
+      FROM pescarias p
+      WHERE ic.id = $6
+        AND ic.pescaria_id = p.id
+        AND p.pescador_id = $7
+      RETURNING ic.*;
+    `, [
+      especie_id,
+      quantidade ?? 1,
+      peso_kg,
+      tamanho_cm ?? null,
+      preco_unitario_kg,
+      id,
+      pescador_id
+    ]);
+
+    if (capturaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ erro: 'Captura não encontrada.' });
+    }
+
+    const itemAtualizado = capturaRes.rows[0];
+    await client.query(`
+      UPDATE transacoes_financeiras
+      SET valor = $1,
+          descricao = $2
+      WHERE item_captura_id = $3 AND pescador_id = $4
+    `, [
+      itemAtualizado.valor_total,
+      `Venda ref. Captura #${itemAtualizado.id}`,
+      id,
+      pescador_id
+    ]);
+
+    await client.query('COMMIT');
+    return res.json(itemAtualizado);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao atualizar captura:', error);
+    return res.status(500).json({ erro: 'Erro interno ao atualizar captura.' });
+  } finally {
+    client.release();
+  }
+};
+
+// DELETE /api/pesca/capturas/:id
+exports.excluirItemCaptura = async (req, res) => {
+  const { id } = req.params;
+  const pescador_id = req.usuarioLogado.id;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const capturaRes = await client.query(`
+      SELECT ic.id
+      FROM itens_captura ic
+      JOIN pescarias p ON p.id = ic.pescaria_id
+      WHERE ic.id = $1 AND p.pescador_id = $2
+    `, [id, pescador_id]);
+
+    if (capturaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ erro: 'Captura não encontrada.' });
+    }
+
+    await client.query(
+      'DELETE FROM transacoes_financeiras WHERE item_captura_id = $1 AND pescador_id = $2',
+      [id, pescador_id]
+    );
+    await client.query('DELETE FROM itens_captura WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    return res.status(204).send();
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao excluir captura:', error);
+    return res.status(500).json({ erro: 'Erro interno ao excluir captura.' });
+  } finally {
+    client.release();
   }
 };

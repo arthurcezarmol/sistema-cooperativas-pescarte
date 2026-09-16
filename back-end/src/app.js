@@ -1,10 +1,13 @@
 const express = require('express');
+const cors = require('cors');
 const routes = require('./routes');
 
 const app = express();
 const db = require('./config/db');
 
+app.use(cors()); // Libera o acesso para o front-end
 app.use(express.json());
+app.use('/api', routes);  // Carrega todas as rotas do projeto
 
 app.get('/api/test-db', async (req, res) => {
   try {
@@ -25,8 +28,5 @@ app.get('/api/test-db', async (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'API online' });
 });
-
-// Carrega todas as rotas do projeto
-app.use('/api', routes);
 
 module.exports = app;

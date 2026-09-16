@@ -10,7 +10,11 @@ router.use(authMock);
 router.post('/desembarque', pescaController.cadastrarDesembarqueCompleto);
 router.post('/pescarias', pescaController.criarPescaria);
 router.get('/pescarias', pescaController.listarMinhasPescarias);
+router.put('/pescarias/:id', pescaController.atualizarPescaria);
+router.delete('/pescarias/:id', pescaController.excluirPescaria);
 router.post('/capturas', pescaController.cadastrarItemCaptura);
+router.put('/capturas/:id', pescaController.atualizarItemCaptura);
+router.delete('/capturas/:id', pescaController.excluirItemCaptura);
 router.get('/especies', pescaController.listarEspecies);
 
 module.exports = router;
