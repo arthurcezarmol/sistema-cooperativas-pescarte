@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_pescarte
+    restart: always
+    environment:
+      POSTGRES_USER: arthur
+      POSTGRES_PASSWORD: 190603
+      POSTGRES_DB: pescarte_db
+    ports:
+      # "porta_da_sua_maquina:porta_do_container"
+      - "5433:5432"
+    volumes:
+      # Garante que os dados continuem salvos mesmo se você desligar o Docker
+      - pgdata:/var/lib/postgresql/data
+      # Executa automaticamente seus scripts SQL ao subir o banco pela primeira vez
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  pgdata:
