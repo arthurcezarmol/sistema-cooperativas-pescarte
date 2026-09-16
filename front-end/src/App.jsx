@@ -51,6 +51,21 @@ export default function App() {
     setAbaAtiva('login');
   };
 
+  // Função para remover informações da pescaria
+  const handleExcluirPescaria = async (pescariaId) => {
+    if (!window.confirm('Tem certeza de que deseja excluir esta pescaria e seus registros contábeis?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/pesca/pescarias/${pescariaId}`);
+      carregarDados(); // Recarrega os totais e a lista automaticamente
+    } catch (error) {
+      console.error('Erro ao excluir pescaria:', error);
+      alert('Erro ao excluir pescaria.');
+    }
+  };
+
   return (
     <div style={{ maxWidth: '960px', margin: '2rem auto', fontFamily: 'sans-serif', padding: '0 1rem' }}>
       <Navbar
@@ -94,6 +109,7 @@ export default function App() {
                   <th style={{ padding: '10px 8px' }}>Observações</th>
                   <th style={{ padding: '10px 8px' }}>Peso Total (kg)</th>
                   <th style={{ padding: '10px 8px' }}>Faturamento (R$)</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -106,6 +122,23 @@ export default function App() {
                     <td style={{ padding: '10px 8px' }}>{Number(p.peso_total_kg).toFixed(2)} kg</td>
                     <td style={{ padding: '10px 8px', color: '#00cc88', fontWeight: 'bold' }}>
                       R$ {Number(p.faturamento_total).toFixed(2)}
+                    </td>
+                    <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleExcluirPescaria(p.pescaria_id)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid #ff4d4f',
+                          color: '#ff4d4f',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem'
+                        }}
+                        title="Excluir pescaria"
+                      >
+                        Excluir
+                      </button>
                     </td>
                   </tr>
                 ))}

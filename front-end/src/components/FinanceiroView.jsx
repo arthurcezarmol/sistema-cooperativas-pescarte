@@ -49,6 +49,21 @@ export default function FinanceiroView({ balanco, onAtualizar }) {
     }
   };
 
+  // Função para deletar transação
+  const handleExcluirTransacao = async (transacaoId) => {
+    if (!window.confirm('Deseja excluir este lançamento financeiro?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/financeiro/transacoes/${transacaoId}`);
+      if (onAtualizar) onAtualizar();
+    } catch (error) {
+      console.error('Erro ao excluir transação:', error);
+      alert('Erro ao excluir transação financeira.');
+    }
+  };
+
   return (
     <div>
       {/* 1. Indicadores Financeiros */}
@@ -149,6 +164,7 @@ export default function FinanceiroView({ balanco, onAtualizar }) {
                   <th style={{ padding: '8px' }}>Tipo</th>
                   <th style={{ padding: '8px' }}>Descrição</th>
                   <th style={{ padding: '8px', textAlign: 'right' }}>Valor</th>
+                  <th style={{ padding: '8px', textAlign: 'center' }}>Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,6 +192,23 @@ export default function FinanceiroView({ balanco, onAtualizar }) {
                         color: isCredito ? '#00cc88' : '#e53e3e'
                       }}>
                         {isCredito ? '+ ' : '- '}R$ {Number(t.valor).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleExcluirTransacao(t.id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#888',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem'
+                          }}
+                          onMouseEnter={(e) => (e.target.style.color = '#ff4d4f')}
+                          onMouseLeave={(e) => (e.target.style.color = '#888')}
+                          title="Excluir lançamento"
+                        >
+                          ✕
+                        </button>
                       </td>
                     </tr>
                   );
