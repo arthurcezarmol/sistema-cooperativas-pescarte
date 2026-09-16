@@ -97,3 +97,27 @@ exports.obterBalanco = async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao consultar balanço.' });
   }
 };
+
+// DELETE /api/financeiro/transacoes/:id
+exports.deletarTransacao = async (req, res) => {
+  const { id } = req.params;
+  const pescador_id = req.query.pescador_id || req.headers['x-pescador-id'] || 1;
+
+  try {
+    const query = `
+      DELETE FROM transacoes_financeiras 
+      WHERE id = $1 AND pescador_id = $2
+      RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [id, pescador_id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ erro: 'Transação não encontrada ou permissão negada.' });
+    }
+
+    return res.json({ mensagem: 'Transação excluída com sucesso!', transacao: rows[0] });
+  } catch (error) {
+    console.error('Erro ao deletar transação:', error);
+    return res.status(500).json({ erro: 'Erro interno ao deletar transação.' });
+  }
+};

@@ -7,5 +7,6 @@ const router = Router();
 
 router.post('/transacoes', financeiroController.criarTransacaoManual);
 router.get('/balanco', financeiroController.obterBalanco);
+router.delete('/transacoes/:id', financeiroController.deletarTransacao);
 
 module.exports = router;
